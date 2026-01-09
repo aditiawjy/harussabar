@@ -1,8 +1,16 @@
 <?php
+// Turn off error display
+ini_set('display_errors', 0);
+error_reporting(0);
+
+// Set headers first
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
+
+// Buffer output to prevent accidental HTML
+ob_start();
 
 require_once 'koneksi.php';
 
@@ -85,6 +93,7 @@ try {
     $conn->close();
     
     // Return response
+    ob_clean(); // Clear any buffered output
     echo json_encode([
         'success' => true,
         'count' => $successCount,
@@ -97,6 +106,7 @@ try {
         $conn->close();
     }
     
+    ob_clean(); // Clear any buffered output
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()

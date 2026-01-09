@@ -1,13 +1,8 @@
-<?php include 'koneksi.php'; ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parser Data Pertandingan</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen py-8">
+<?php
+// Redirect ke index.php dengan sidebar
+header('Location: index.php?page=parser');
+exit();
+?>
     <div class="container mx-auto px-4 max-w-4xl">
         <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Parser Data Pertandingan</h1>
         
@@ -18,15 +13,29 @@
             <textarea 
                 id="inputText" 
                 class="w-full h-48 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Paste data pertandingan di sini...">2026-01-09 12:00 PMCOMPLETED	FH	FT
-Sevilla (V)  v Real Madrid (V)	2 - 1	2 - 1
-More Info 
-2026-01-09 12:00 PMCOMPLETED	FH	FT
-Bayer 04 Leverkusen (V)  v Juventus (V)	1 - 1	1 - 1
-More Info 
-2026-01-09 12:00 PMCOMPLETED	FH	FT
-Everton (V)  v AC Milan (V)	0 - 3	0 - 3
-More Info</textarea>
+                placeholder="Paste data pertandingan di sini..."></textarea>
+            
+            <div class="mt-4 flex items-center space-x-4">
+                <div class="flex-1">
+                    <label for="leagueSelect" class="block text-sm font-medium text-gray-700 mb-1">
+                        Liga/Kompetisi:
+                    </label>
+                    <div class="flex space-x-2">
+                        <select 
+                            id="leagueSelect" 
+                            class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Pilih Liga --</option>
+                            <!-- Options will be loaded from database -->
+                        </select>
+                        <input 
+                            type="text" 
+                            id="newLeagueInput" 
+                            class="hidden flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Masukkan nama liga baru">
+                    </div>
+                    <div id="leagueStatus" class="mt-1 text-xs text-gray-500"></div>
+                </div>
+            </div>
             
             <button 
                 onclick="parseData()" 
@@ -57,6 +66,118 @@ More Info</textarea>
     </div>
 
     <script>
+        // Load leagues from database
+        async function loadLeagues() {
+            try {
+                const response = await fetch('get_leagues.php');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const leagueSelect = document.getElementById('leagueSelect');
+                    const leagueStatus = document.getElementById('leagueStatus');
+                    
+                    // Clear existing options (except first)
+                    leagueSelect.innerHTML = '<option value="">-- Pilih Liga --</option>';
+                    
+                    if (data.leagues.length > 0) {
+                        // Add leagues from database
+                        data.leagues.forEach(league => {
+                            const option = document.createElement('option');
+                            option.value = league;
+                            option.textContent = league;
+                            leagueSelect.appendChild(option);
+                        });
+                        
+                        // Add "Tambah Baru" option
+                        const otherOption = document.createElement('option');
+                        otherOption.value = 'other';
+                        otherOption.textContent = '-- Tambah Baru --';
+                        leagueSelect.appendChild(otherOption);
+                        
+                        leagueStatus.textContent = `${data.leagues.length} liga dimuat dari database`;
+                    } else {
+                        // Default options if no data
+                        const defaultLeagues = [
+                            'SABA CLUB FRIENDLY Virtual PES 21 - 15 Mins Play',
+                            'SABA INTERNATIONAL FRIENDLY Virtual PES 21 - 20 Mins Play',
+                            'SABA LEAGUE Virtual PES 21 - 15 Mins Play',
+                            'SABA CUP Virtual PES 21 - 15 Mins Play'
+                        ];
+                        
+                        defaultLeagues.forEach(league => {
+                            const option = document.createElement('option');
+                            option.value = league;
+                            option.textContent = league;
+                            leagueSelect.appendChild(option);
+                        });
+                        
+                        const otherOption = document.createElement('option');
+                        otherOption.value = 'other';
+                        otherOption.textContent = '-- Tambah Baru --';
+                        leagueSelect.appendChild(otherOption);
+                        
+                        leagueStatus.textContent = 'Menggunakan liga default';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading leagues:', error);
+                document.getElementById('leagueStatus').textContent = 'Gagal memuat liga';
+            }
+        }
+        
+        // Load leagues when page loads
+        document.addEventListener('DOMContentLoaded', loadLeagues);
+        
+        // Handle league dropdown change
+        document.getElementById('leagueSelect').addEventListener('change', function() {
+            const newLeagueInput = document.getElementById('newLeagueInput');
+            
+            if (this.value === 'other') {
+                // Show input for new league
+                newLeagueInput.classList.remove('hidden');
+                newLeagueInput.focus();
+            } else {
+                // Hide input
+                newLeagueInput.classList.add('hidden');
+                newLeagueInput.value = '';
+            }
+        });
+        
+        // Add new league when Enter is pressed
+        document.getElementById('newLeagueInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const leagueSelect = document.getElementById('leagueSelect');
+                const newLeagueValue = this.value.trim();
+                
+                if (newLeagueValue) {
+                    // Add new option to select
+                    const newOption = document.createElement('option');
+                    newOption.value = newLeagueValue;
+                    newOption.textContent = newLeagueValue;
+                    newOption.selected = true;
+                    
+                    // Insert before "other" option
+                    const otherOption = leagueSelect.querySelector('option[value="other"]');
+                    leagueSelect.insertBefore(newOption, otherOption);
+                    
+                    // Hide input
+                    this.classList.add('hidden');
+                    this.value = '';
+                }
+            }
+        });
+        
+        function getSelectedLeague() {
+            const leagueSelect = document.getElementById('leagueSelect');
+            const newLeagueInput = document.getElementById('newLeagueInput');
+            
+            if (leagueSelect.value === 'other' && newLeagueInput.value.trim()) {
+                return newLeagueInput.value.trim();
+            }
+            
+            return leagueSelect.value;
+        }
+        
         function parseData() {
             const input = document.getElementById('inputText').value;
             const resultDiv = document.getElementById('result');
@@ -102,8 +223,8 @@ More Info</textarea>
                         
                         const datetime = datetimeMatch[1];
                         
-                        // Extract match info
-                        const matchPattern = /^(.+?)\s+v\s+(.+?)\s+(\d+)\s*-\s*(\d+)\s+(\d+)\s*-\s*(\d+)$/;
+                        // Extract match info - Update regex untuk handle -:-
+                        const matchPattern = /^(.+?)\s+v\s+(.+?)\s+(\d+|\:-)\s*-\s*(\d+|\:-)\s+(\d+|\:-)\s*-\s*(\d+|\:-)$/;
                         const matchMatch = match.matchLine.match(matchPattern);
                         
                         if (!matchMatch) {
@@ -127,15 +248,20 @@ More Info</textarea>
                         });
                         
                         // Store match data untuk database
+                        const selectedLeague = getSelectedLeague();
+                        
+                        // Convert -:- to NULL for database
+                        const convertScore = (score) => score === ':-' ? null : parseInt(score);
+                        
                         const matchData = {
                             match_time: datetime,
                             home_team: homeClub.trim(),
                             away_team: awayClub.trim(),
-                            league: 'SABA CLUB FRIENDLY', // Default league
-                            fh_home: parseInt(htHome),
-                            fh_away: parseInt(htAway),
-                            ft_home: parseInt(ftHome),
-                            ft_away: parseInt(ftAway)
+                            league: selectedLeague,
+                            fh_home: convertScore(htHome),
+                            fh_away: convertScore(htAway),
+                            ft_home: convertScore(ftHome),
+                            ft_away: convertScore(ftAway)
                         };
                         
                         allMatchesData.push(matchData);
@@ -209,7 +335,7 @@ More Info</textarea>
             saveBtn.textContent = 'Menyimpan...';
             saveStatus.innerHTML = '<div class="text-blue-600">Menyimpan data ke database...</div>';
             
-            fetch('save_matches.php', {
+            fetch('save_matches_simple.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,7 +347,60 @@ More Info</textarea>
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    saveStatus.innerHTML = `<div class="text-green-600 font-semibold">✅ Berhasil menyimpan ${data.count} pertandingan!</div>`;
+                    // SUCCESS - Show big green notification
+                    saveStatus.innerHTML = `
+                        <div class="bg-green-100 border-2 border-green-400 text-green-700 px-6 py-4 rounded-lg mt-4">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <div>
+                                    <p class="font-bold text-lg">${data.message}</p>
+                                    <p class="text-sm">Data pertandingan berhasil disimpan ke database!</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Refresh leagues if new data was added
+                    if (data.refreshLeagues) {
+                        loadLeagues();
+                    }
+                    
+                    // Clear textarea after successful save
+                    document.getElementById('inputText').value = '';
+                    
+                    // Hide save button and result after clear
+                    document.getElementById('saveBtn').classList.add('hidden');
+                    document.getElementById('result').classList.add('hidden');
+                    
+                    // Show success message with clear info
+                    saveStatus.innerHTML = `
+                        <div class="bg-green-100 border-2 border-green-400 text-green-700 px-6 py-4 rounded-lg mt-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <svg class="w-8 h-8 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <div>
+                                        <p class="font-bold text-lg">${data.message}</p>
+                                        <p class="text-sm">Data pertandingan berhasil disimpan ke database!</p>
+                                        <p class="text-xs mt-1">✓ Textarea telah dibersihkan</p>
+                                    </div>
+                                </div>
+                                <button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">
+                                    Input Lagi
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Don't disable save button since it will be hidden
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Simpan ke Database';
+                    saveBtn.classList.remove('bg-gray-400');
+                    saveBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    
                 } else {
                     saveStatus.innerHTML = `<div class="text-red-600">❌ Error: ${data.error}</div>`;
                 }
@@ -230,15 +409,18 @@ More Info</textarea>
                 saveStatus.innerHTML = `<div class="text-red-600">❌ Error: ${error.message}</div>`;
             })
             .finally(() => {
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Simpan ke Database';
+                // Don't re-enable if success
+                if (saveBtn.textContent !== '✅ Tersimpan') {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Simpan ke Database';
+                }
             });
         }
         
-        // Auto-parse on page load with sample data
-        window.addEventListener('load', () => {
-            setTimeout(() => parseData(), 500);
-        });
+        // Auto-parse on page load with sample data - DISABLED
+        // window.addEventListener('load', () => {
+        //     setTimeout(() => parseData(), 500);
+        // });
     </script>
 </body>
 </html>
