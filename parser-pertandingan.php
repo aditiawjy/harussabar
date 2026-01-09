@@ -1,3 +1,4 @@
+<?php include 'koneksi.php'; ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -32,6 +33,13 @@ More Info</textarea>
                 class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
                 Parse Data
             </button>
+            <button 
+                id="saveBtn"
+                onclick="saveToDatabase()" 
+                class="mt-4 ml-2 bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors hidden">
+                Simpan ke Database
+            </button>
+            <div id="saveStatus" class="mt-4"></div>
         </div>
 
         <div id="result" class="hidden">
@@ -118,21 +126,16 @@ More Info</textarea>
                             hour12: false
                         });
                         
-                        // Store match data
+                        // Store match data untuk database
                         const matchData = {
-                            datetime: datetime,
-                            date: formattedDate,
-                            time: formattedTime + ' WIB',
-                            homeClub: homeClub.trim(),
-                            awayClub: awayClub.trim(),
-                            fullTime: {
-                                home: parseInt(ftHome),
-                                away: parseInt(ftAway)
-                            },
-                            halfTime: {
-                                home: parseInt(htHome),
-                                away: parseInt(htAway)
-                            }
+                            match_time: datetime,
+                            home_team: homeClub.trim(),
+                            away_team: awayClub.trim(),
+                            league: 'SABA CLUB FRIENDLY', // Default league
+                            fh_home: parseInt(htHome),
+                            fh_away: parseInt(htAway),
+                            ft_home: parseInt(ftHome),
+                            ft_away: parseInt(ftAway)
                         };
                         
                         allMatchesData.push(matchData);
@@ -175,21 +178,61 @@ More Info</textarea>
                     }
                 });
                 
-                // Add JSON output for all matches
+                // Add JSON output untuk database
                 htmlOutput += `
                     <div class="mt-6 p-4 bg-gray-900 rounded-md">
-                        <h3 class="font-semibold text-white mb-2">JSON Output (Semua Pertandingan):</h3>
+                        <h3 class="font-semibold text-white mb-2">Data untuk Database:</h3>
                         <pre class="text-xs text-green-400 overflow-x-auto">${JSON.stringify(allMatchesData, null, 2)}</pre>
                     </div>
                 </div>`;
                 
+                // Store data globally untuk save function
+                window.parsedMatchesData = allMatchesData;
+                
                 parsedContent.innerHTML = htmlOutput;
                 resultDiv.classList.remove('hidden');
+                
+                // Show save button
+                document.getElementById('saveBtn').classList.remove('hidden');
                 
             } catch (error) {
                 errorDiv.querySelector('p').textContent = error.message;
                 errorDiv.classList.remove('hidden');
             }
+        }
+        
+        function saveToDatabase() {
+            const saveBtn = document.getElementById('saveBtn');
+            const saveStatus = document.getElementById('saveStatus');
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Menyimpan...';
+            saveStatus.innerHTML = '<div class="text-blue-600">Menyimpan data ke database...</div>';
+            
+            fetch('save_matches.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    matches: window.parsedMatchesData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    saveStatus.innerHTML = `<div class="text-green-600 font-semibold">✅ Berhasil menyimpan ${data.count} pertandingan!</div>`;
+                } else {
+                    saveStatus.innerHTML = `<div class="text-red-600">❌ Error: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                saveStatus.innerHTML = `<div class="text-red-600">❌ Error: ${error.message}</div>`;
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Simpan ke Database';
+            });
         }
         
         // Auto-parse on page load with sample data
