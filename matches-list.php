@@ -1,27 +1,12 @@
 <?php
 require_once 'koneksi.php';
 
-// Pagination
-$page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
-$perPage = 20;
-$offset = ($page - 1) * $perPage;
+// Pagination setup
+$p = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+$perPage = 15;
+$offset = ($p - 1) * $perPage;
 
-// Get total matches
-$totalResult = $conn->query("SELECT COUNT(*) as total FROM matches");
-$total = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($total / $perPage);
-
-// Get matches with pagination
-$matches = $conn->query("SELECT * FROM matches ORDER BY match_time DESC LIMIT $perPage OFFSET $offset");
-
-// Get unique leagues
-$leaguesResult = $conn->query("SELECT DISTINCT league FROM matches WHERE league IS NOT NULL ORDER BY league");
-$leagues = [];
-while ($row = $leaguesResult->fetch_assoc()) {
-    $leagues[] = $row['league'];
-}
-
-// Filter
+// Base query for counts and filtering
 $where = "WHERE 1=1";
 $params = [];
 $types = "";
@@ -52,41 +37,73 @@ if (!empty($_GET['date_to'])) {
     $types .= "s";
 }
 
-// Order by match_time DESC (newest first)
-$orderClause = "ORDER BY match_time DESC";
-
-// Re-run query with filters
+// Get total count for pagination
+$countQuery = "SELECT COUNT(*) as total FROM matches $where";
 if (!empty($params)) {
-    $stmt = $conn->prepare("SELECT * FROM matches $where $orderClause LIMIT $perPage OFFSET $offset");
+    $stmt = $conn->prepare($countQuery);
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $total = $stmt->get_result()->fetch_assoc()['total'];
 } else {
-    $result = $matches;
+    $total = $conn->query($countQuery)->fetch_assoc()['total'];
+}
+$totalPages = ceil($total / $perPage);
+
+// Get filtered matches
+$sql = "SELECT * FROM matches $where ORDER BY match_time DESC LIMIT ? OFFSET ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param($types . "ii", ...array_merge($params, [$perPage, $offset]));
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Get unique leagues for filter
+$leaguesResult = $conn->query("SELECT DISTINCT league FROM matches WHERE league IS NOT NULL ORDER BY league");
+$leagues = [];
+while ($row = $leaguesResult->fetch_assoc()) {
+    $leagues[] = $row['league'];
 }
 ?>
 
-<div class="p-6">
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Semua Pertandingan</h1>
-        <p class="text-gray-600 mt-2">Total: <?php echo number_format($total); ?> pertandingan</p>
+<div class="p-8">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Semua Pertandingan</h1>
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                    <?php echo number_format($total); ?> TOTAL
+                </span>
+                <p class="text-slate-500 text-sm font-medium">Monitoring data pertandingan secara real-time</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <a href="index.php?page=parser" class="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all shadow-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Tambah Data
+            </a>
+        </div>
     </div>
 
     <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-        <form method="GET" class="flex flex-wrap gap-4">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <input type="hidden" name="page" value="matches">
             
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Cari Tim:</label>
-                <input type="text" name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                       placeholder="Nama tim...">
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cari Tim</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </span>
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
+                           class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                           placeholder="Nama tim...">
+                </div>
             </div>
             
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Liga:</label>
-                <select name="league" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Liga</label>
+                <select name="league" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none transition-all">
                     <option value="">Semua Liga</option>
                     <?php foreach ($leagues as $league): ?>
                         <option value="<?php echo htmlspecialchars($league); ?>" <?php echo ($_GET['league'] ?? '') == $league ? 'selected' : ''; ?>>
@@ -96,83 +113,99 @@ if (!empty($params)) {
                 </select>
             </div>
             
-            <div class="flex-1 min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal:</label>
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mulai Tanggal</label>
                 <input type="date" name="date_from" value="<?php echo htmlspecialchars($_GET['date_from'] ?? ''); ?>" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
             </div>
             
-            <div class="flex-1 min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal:</label>
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Sampai Tanggal</label>
                 <input type="date" name="date_to" value="<?php echo htmlspecialchars($_GET['date_to'] ?? ''); ?>" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
             </div>
             
-            <div class="flex items-end">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                    Filter
+            <div class="flex items-end gap-2">
+                <button type="submit" class="flex-1 bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-95">
+                    Terapkan
                 </button>
-                <a href="index.php?page=matches" class="ml-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
-                    Reset
+                <a href="index.php?page=matches" class="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 hover:text-slate-700 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </a>
             </div>
         </form>
     </div>
 
     <!-- Matches Table -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Home</th>
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Skor</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Away</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Liga</th>
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 border-b border-slate-100">
+                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Jadwal & Waktu</th>
+                        <th class="px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Tim Tuan Rumah</th>
+                        <th class="px-8 py-5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Hasil Skor</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Tim Tamu</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Kompetisi Liga</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="divide-y divide-slate-50">
                     <?php if ($result->num_rows > 0): ?>
                         <?php while ($match = $result->fetch_assoc()): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?php 
-                                    $date = new DateTime($match['match_time']);
-                                    echo $date->format('d/m/Y H:i');
-                                    ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    <?php echo htmlspecialchars($match['home_team']); ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <div class="text-sm">
-                                        <span class="font-bold text-blue-600">
-                                            <?php echo $match['ft_home'] !== null ? $match['ft_home'] : '-'; ?>
+                            <tr class="hover:bg-slate-50/80 transition-colors group">
+                                <td class="px-8 py-6 whitespace-nowrap">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-slate-900">
+                                            <?php echo (new DateTime($match['match_time']))->format('d M Y'); ?>
                                         </span>
-                                        <span class="mx-1">-</span>
-                                        <span class="font-bold text-blue-600">
-                                            <?php echo $match['ft_away'] !== null ? $match['ft_away'] : '-'; ?>
+                                        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wide">
+                                            <?php echo (new DateTime($match['match_time']))->format('H:i'); ?> WIB
                                         </span>
                                     </div>
-                                    <?php if ($match['fh_home'] !== null): ?>
-                                        <div class="text-xs text-gray-500">
-                                            (<?php echo $match['fh_home']; ?>-<?php echo $match['fh_away']; ?>)
+                                </td>
+                                <td class="px-8 py-6 text-right">
+                                    <span class="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                        <?php echo htmlspecialchars($match['home_team']); ?>
+                                    </span>
+                                </td>
+                                <td class="px-8 py-6">
+                                    <div class="flex flex-col items-center justify-center gap-1">
+                                        <div class="flex items-center gap-3 bg-slate-100/50 px-4 py-1.5 rounded-2xl border border-slate-100">
+                                            <span class="text-base font-black text-slate-900"><?php echo $match['ft_home'] ?? '-'; ?></span>
+                                            <span class="text-slate-300 font-bold">:</span>
+                                            <span class="text-base font-black text-slate-900"><?php echo $match['ft_away'] ?? '-'; ?></span>
                                         </div>
-                                    <?php endif; ?>
+                                        <?php if ($match['fh_home'] !== null): ?>
+                                            <span class="text-[10px] font-bold text-slate-400">
+                                                HT <?php echo $match['fh_home']; ?>-<?php echo $match['fh_away']; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    <?php echo htmlspecialchars($match['away_team']); ?>
+                                <td class="px-8 py-6">
+                                    <span class="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                        <?php echo htmlspecialchars($match['away_team']); ?>
+                                    </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <?php echo htmlspecialchars($match['league']); ?>
+                                <td class="px-8 py-6">
+                                    <div class="max-w-[200px] truncate">
+                                        <span class="text-xs font-semibold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                            <?php echo htmlspecialchars($match['league']); ?>
+                                        </span>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                                Tidak ada data pertandingan
+                            <td colspan="5" class="px-8 py-24 text-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
+                                        <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    </div>
+                                    <p class="text-slate-400 font-semibold tracking-tight">Tidak ada pertandingan ditemukan</p>
+                                    <a href="index.php?page=matches" class="text-sm font-bold text-blue-600 hover:text-blue-700">Reset Filter</a>
+                                </div>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -182,29 +215,45 @@ if (!empty($params)) {
 
         <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
-            <div class="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-                <div class="text-sm text-gray-700">
-                    Menampilkan <?php echo $offset + 1; ?> sampai <?php echo min($offset + $perPage, $total); ?> dari <?php echo number_format($total); ?> pertandingan
+            <div class="bg-slate-50/50 px-8 py-6 flex items-center justify-between border-t border-slate-100">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Halaman <span class="text-slate-900"><?php echo $p; ?></span> dari <span class="text-slate-900"><?php echo $totalPages; ?></span>
                 </div>
-                <div class="flex space-x-2">
-                    <?php if ($page > 1): ?>
-                        <a href="?page=matches&p=<?php echo $page - 1; ?><?php echo !empty($_GET['league']) ? '&league=' . urlencode($_GET['league']) : ''; ?><?php echo !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : ''; ?><?php echo !empty($_GET['date_from']) ? '&date_from=' . urlencode($_GET['date_from']) : ''; ?><?php echo !empty($_GET['date_to']) ? '&date_to=' . urlencode($_GET['date_to']) : ''; ?>" 
-                           class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                            Previous
+                
+                <div class="flex items-center gap-1">
+                    <?php 
+                    $queryString = '';
+                    foreach ($_GET as $key => $val) {
+                        if ($key != 'p') $queryString .= '&' . urlencode($key) . '=' . urlencode($val);
+                    }
+                    ?>
+                    
+                    <?php if ($p > 1): ?>
+                        <a href="?p=<?php echo $p - 1; ?><?php echo $queryString; ?>" 
+                           class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200/50 rounded-lg transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                         </a>
                     <?php endif; ?>
                     
-                    <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
-                        <a href="?page=matches&p=<?php echo $i; ?><?php echo !empty($_GET['league']) ? '&league=' . urlencode($_GET['league']) : ''; ?><?php echo !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : ''; ?><?php echo !empty($_GET['date_from']) ? '&date_from=' . urlencode($_GET['date_from']) : ''; ?><?php echo !empty($_GET['date_to']) ? '&date_to=' . urlencode($_GET['date_to']) : ''; ?>" 
-                           class="px-3 py-1 <?php echo $i == $page ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'; ?> rounded-md text-sm">
-                            <?php echo $i; ?>
-                        </a>
-                    <?php endfor; ?>
+                    <div class="flex items-center px-2 gap-1">
+                        <?php 
+                        $start = max(1, $p - 1);
+                        $end = min($totalPages, $p + 1);
+                        if ($start > 1) echo '<span class="text-slate-300 px-1">...</span>';
+                        for ($i = $start; $i <= $end; $i++): 
+                        ?>
+                            <a href="?p=<?php echo $i; ?><?php echo $queryString; ?>" 
+                               class="min-w-[32px] h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all <?php echo $i == $p ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-900'; ?>">
+                                <?php echo $i; ?>
+                            </a>
+                        <?php endfor; ?>
+                        <?php if ($end < $totalPages) echo '<span class="text-slate-300 px-1">...</span>'; ?>
+                    </div>
                     
-                    <?php if ($page < $totalPages): ?>
-                        <a href="?page=matches&p=<?php echo $page + 1; ?><?php echo !empty($_GET['league']) ? '&league=' . urlencode($_GET['league']) : ''; ?><?php echo !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : ''; ?><?php echo !empty($_GET['date_from']) ? '&date_from=' . urlencode($_GET['date_from']) : ''; ?><?php echo !empty($_GET['date_to']) ? '&date_to=' . urlencode($_GET['date_to']) : ''; ?>" 
-                           class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                            Next
+                    <?php if ($p < $totalPages): ?>
+                        <a href="?p=<?php echo $p + 1; ?><?php echo $queryString; ?>" 
+                           class="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200/50 rounded-lg transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                         </a>
                     <?php endif; ?>
                 </div>
