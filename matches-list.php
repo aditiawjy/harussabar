@@ -142,54 +142,65 @@ while ($row = $leaguesResult->fetch_assoc()) {
             <table class="w-full border-collapse">
                 <thead>
                     <tr class="bg-slate-50/50 border-b border-slate-100">
-                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Jadwal & Waktu</th>
-                        <th class="px-8 py-5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Tim Tuan Rumah</th>
-                        <th class="px-8 py-5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Hasil Skor</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Tim Tamu</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Kompetisi Liga</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Waktu & Jadwal</th>
+                        <th class="px-8 py-5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Pertandingan</th>
+                        <th class="px-8 py-5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Hasil Akhir</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Kompetisi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                     <?php if ($result->num_rows > 0): ?>
                         <?php while ($match = $result->fetch_assoc()): ?>
-                            <tr class="hover:bg-slate-50/80 transition-colors group">
+                            <tr class="hover:bg-slate-50 transition-all duration-200 group">
                                 <td class="px-8 py-6 whitespace-nowrap">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-bold text-slate-900">
-                                            <?php echo (new DateTime($match['match_time']))->format('d M Y'); ?>
-                                        </span>
-                                        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wide">
-                                            <?php echo (new DateTime($match['match_time']))->format('H:i'); ?> WIB
-                                        </span>
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-100 flex flex-col items-center justify-center text-slate-500 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-slate-100">
+                                            <span class="text-[10px] font-bold uppercase leading-none mb-0.5"><?php echo (new DateTime($match['match_time']))->format('M'); ?></span>
+                                            <span class="text-sm font-black text-slate-900 leading-none"><?php echo (new DateTime($match['match_time']))->format('d'); ?></span>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1"><?php echo (new DateTime($match['match_time']))->format('Y'); ?></span>
+                                            <span class="text-xs font-bold text-slate-700 leading-none"><?php echo (new DateTime($match['match_time']))->format('H:i'); ?> WIB</span>
+                                        </div>
                                     </div>
                                 </td>
-                                <td class="px-8 py-6 text-right">
-                                    <span class="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                                        <?php echo htmlspecialchars($match['home_team']); ?>
-                                    </span>
+                                <td class="px-8 py-6">
+                                    <div class="flex items-center justify-center gap-4">
+                                        <div class="flex-1 text-right">
+                                            <span class="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                                <?php echo htmlspecialchars($match['home_team']); ?>
+                                            </span>
+                                        </div>
+                                        <div class="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center">
+                                            <span class="text-[10px] font-bold text-slate-400">VS</span>
+                                        </div>
+                                        <div class="flex-1 text-left">
+                                            <span class="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                                <?php echo htmlspecialchars($match['away_team']); ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-8 py-6">
-                                    <div class="flex flex-col items-center justify-center gap-1">
-                                        <div class="flex items-center gap-3 bg-slate-100/50 px-4 py-1.5 rounded-2xl border border-slate-100">
-                                            <span class="text-base font-black text-slate-900"><?php echo $match['ft_home'] ?? '-'; ?></span>
-                                            <span class="text-slate-300 font-bold">:</span>
-                                            <span class="text-base font-black text-slate-900"><?php echo $match['ft_away'] ?? '-'; ?></span>
+                                    <div class="flex flex-col items-center justify-center gap-1.5">
+                                        <div class="flex items-center gap-2 bg-slate-900 px-4 py-1.5 rounded-xl shadow-sm">
+                                            <span class="text-sm font-black text-white"><?php echo $match['ft_home'] ?? '0'; ?></span>
+                                            <span class="text-slate-500 font-bold">-</span>
+                                            <span class="text-sm font-black text-white"><?php echo $match['ft_away'] ?? '0'; ?></span>
                                         </div>
                                         <?php if ($match['fh_home'] !== null): ?>
-                                            <span class="text-[10px] font-bold text-slate-400">
-                                                HT <?php echo $match['fh_home']; ?>-<?php echo $match['fh_away']; ?>
-                                            </span>
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Half Time</span>
+                                                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                                    <?php echo $match['fh_home']; ?>-<?php echo $match['fh_away']; ?>
+                                                </span>
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </td>
                                 <td class="px-8 py-6">
-                                    <span class="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                                        <?php echo htmlspecialchars($match['away_team']); ?>
-                                    </span>
-                                </td>
-                                <td class="px-8 py-6">
-                                    <div class="max-w-[200px] truncate">
-                                        <span class="text-xs font-semibold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                    <div class="max-w-[220px]">
+                                        <span class="inline-block text-[10px] font-bold text-blue-600 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100/50 uppercase tracking-tight truncate w-full text-center">
                                             <?php echo htmlspecialchars($match['league']); ?>
                                         </span>
                                     </div>
