@@ -62,6 +62,13 @@ $leagues = [];
 while ($row = $leaguesResult->fetch_assoc()) {
     $leagues[] = $row['league'];
 }
+
+// Get unique teams for autocomplete
+$teamsResult = $conn->query("SELECT DISTINCT home_team as team FROM matches UNION SELECT DISTINCT away_team as team FROM matches ORDER BY team");
+$teams = [];
+while ($row = $teamsResult->fetch_assoc()) {
+    $teams[] = $row['team'];
+}
 ?>
 
 <div class="p-8">
@@ -80,7 +87,7 @@ while ($row = $leaguesResult->fetch_assoc()) {
             <a href="index.php?page=parser" class="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-all shadow-sm">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Tambah Data
-            </a>
+            </div>
         </div>
     </div>
 
@@ -95,9 +102,17 @@ while ($row = $leaguesResult->fetch_assoc()) {
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
-                    <input type="text" name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
+                    <input type="text" 
+                           id="teamSearch" 
+                           name="search" 
+                           value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
                            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-                           placeholder="Nama tim...">
+                           placeholder="Nama tim..." 
+                           autocomplete="off">
+                    
+                    <!-- Autocomplete dropdown -->
+                    <div id="autocompleteResults" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                    </div>
                 </div>
             </div>
             
