@@ -6,15 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sabaraja - Management Pertandingan</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Poppins', sans-serif; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div class="flex h-screen overflow-hidden">
+        <!-- Mobile Menu Button -->
+        <button id="mobileMenuBtn" class="lg:hidden fixed top-4 left-4 z-50 p-3 bg-slate-900 text-white rounded-xl shadow-lg transition-all duration-300">
+            <!-- Hamburger Icon -->
+            <svg id="hamburgerIcon" class="w-6 h-6 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <!-- Close Icon -->
+            <svg id="closeIcon" class="w-6 h-6 hidden transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+
+        <!-- Sidebar Overlay -->
+        <div id="sidebarOverlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
+
         <!-- Sidebar -->
-        <aside class="w-72 bg-slate-900 text-white flex flex-col shadow-2xl z-20">
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white flex flex-col shadow-2xl transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
             <div class="p-8">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
@@ -43,6 +58,13 @@
                     </svg>
                     <span class="font-medium">Semua Pertandingan</span>
                 </a>
+                
+                <a href="index.php?page=clubs" class="group flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 <?php echo (isset($_GET['page']) && $_GET['page'] == 'clubs') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'; ?>">
+                    <svg class="w-5 h-5 mr-3 <?php echo (isset($_GET['page']) && $_GET['page'] == 'clubs') ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'; ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span class="font-medium">Club Record</span>
+                </a>
             </nav>
 
             <div class="p-6 border-t border-slate-800">
@@ -63,14 +85,20 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col min-w-0 bg-slate-50">
             <!-- Top Navbar -->
-            <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+            <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-10">
                 <div class="flex items-center gap-2">
-                    <span class="text-slate-400 text-sm font-medium">Pages</span>
-                    <span class="text-slate-300">/</span>
+                    <span class="text-slate-400 text-sm font-medium hidden lg:block">Pages</span>
+                    <span class="text-slate-300 hidden lg:block">/</span>
                     <span class="text-slate-900 text-sm font-semibold">
                         <?php 
                         $page = $_GET['page'] ?? 'parser';
-                        echo $page == 'parser' ? 'Parsing Data' : 'Semua Pertandingan';
+                        if ($page == 'parser') {
+                            echo 'Parsing Data';
+                        } elseif ($page == 'matches') {
+                            echo 'Semua Pertandingan';
+                        } elseif ($page == 'clubs') {
+                            echo 'Club Record';
+                        }
                         ?>
                     </span>
                 </div>
@@ -92,11 +120,92 @@
                         include 'parser-content.php';
                     } elseif ($page == 'matches') {
                         include 'matches-list.php';
+                    } elseif ($page == 'clubs') {
+                        include 'clubs-record-simple.php';
                     }
                     ?>
                 </div>
             </div>
         </main>
     </div>
+</div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Mobile Sidebar Script -->
+<script>
+$(document).ready(function() {
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const hamburgerIcon = document.getElementById('hamburgerIcon');
+    const closeIcon = document.getElementById('closeIcon');
+    
+    // Open sidebar
+    mobileMenuBtn.addEventListener('click', function() {
+        const isOpen = !sidebar.classList.contains('-translate-x-full');
+        
+        if (!isOpen) {
+            // Open sidebar
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            // Change hamburger to X
+            hamburgerIcon.classList.add('hidden');
+            closeIcon.classList.remove('hidden');
+            mobileMenuBtn.classList.add('bg-red-600');
+            mobileMenuBtn.classList.remove('bg-slate-900');
+        } else {
+            // Close sidebar
+            closeSidebar();
+        }
+    });
+    
+    // Close sidebar
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        sidebarOverlay.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        
+        // Change X back to hamburger
+        hamburgerIcon.classList.remove('hidden');
+        closeIcon.classList.add('hidden');
+        mobileMenuBtn.classList.remove('bg-red-600');
+        mobileMenuBtn.classList.add('bg-slate-900');
+    }
+    
+    sidebarOverlay.addEventListener('click', closeSidebar);
+    
+    // Close sidebar when clicking a link on mobile
+    const sidebarLinks = sidebar.querySelectorAll('a');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth < 1024) {
+                closeSidebar();
+            }
+        });
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 1024) {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            
+            // Reset button state on desktop
+            hamburgerIcon.classList.remove('hidden');
+            closeIcon.classList.add('hidden');
+            mobileMenuBtn.classList.remove('bg-red-600');
+            mobileMenuBtn.classList.add('bg-slate-900');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+        }
+    });
+});
+</script>
+
 </body>
 </html>

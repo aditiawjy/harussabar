@@ -6,7 +6,7 @@ $p = isset($_GET['p']) ? (int)$_GET['p'] : 1;
 $perPage = 15;
 $offset = ($p - 1) * $perPage;
 
-// Base query for counts and filtering
+// Filter
 $where = "WHERE 1=1";
 $params = [];
 $types = "";
@@ -36,6 +36,9 @@ if (!empty($_GET['date_to'])) {
     $params[] = $_GET['date_to'];
     $types .= "s";
 }
+
+// Order by match_time DESC (newest first)
+$orderClause = "ORDER BY match_time DESC";
 
 // Get total count for pagination
 $countQuery = "SELECT COUNT(*) as total FROM matches $where";
@@ -93,56 +96,63 @@ while ($row = $teamsResult->fetch_assoc()) {
 
     <!-- Filters -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
-        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <form method="GET" class="space-y-6">
             <input type="hidden" name="page" value="matches">
             
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cari Tim</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </span>
-                    <input type="text" 
-                           id="teamSearch" 
-                           name="search" 
-                           value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
-                           class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-                           placeholder="Nama tim..." 
-                           autocomplete="off">
-                    
-                    <!-- Autocomplete dropdown -->
-                    <div id="autocompleteResults" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+            <!-- Row 1: Search and League -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cari Tim</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </span>
+                        <input type="text" 
+                               id="teamSearch" 
+                               name="search" 
+                               value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" 
+                               class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                               placeholder="Nama tim..." 
+                               autocomplete="off">
+                        
+                        <!-- Autocomplete dropdown -->
+                        <div id="autocompleteResults" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                        </div>
                     </div>
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Liga</label>
+                    <select name="league" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none transition-all">
+                        <option value="">Semua Liga</option>
+                        <?php foreach ($leagues as $league): ?>
+                            <option value="<?php echo htmlspecialchars($league); ?>" <?php echo ($_GET['league'] ?? '') == $league ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($league); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
             
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Liga</label>
-                <select name="league" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none transition-all">
-                    <option value="">Semua Liga</option>
-                    <?php foreach ($leagues as $league): ?>
-                        <option value="<?php echo htmlspecialchars($league); ?>" <?php echo ($_GET['league'] ?? '') == $league ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($league); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+            <!-- Row 2: Date Range -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mulai Tanggal</label>
+                    <input type="date" name="date_from" value="<?php echo htmlspecialchars($_GET['date_from'] ?? ''); ?>" 
+                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Sampai Tanggal</label>
+                    <input type="date" name="date_to" value="<?php echo htmlspecialchars($_GET['date_to'] ?? ''); ?>" 
+                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
+                </div>
             </div>
             
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mulai Tanggal</label>
-                <input type="date" name="date_from" value="<?php echo htmlspecialchars($_GET['date_from'] ?? ''); ?>" 
-                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
-            </div>
-            
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Sampai Tanggal</label>
-                <input type="date" name="date_to" value="<?php echo htmlspecialchars($_GET['date_to'] ?? ''); ?>" 
-                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all">
-            </div>
-            
-            <div class="flex items-end gap-2">
+            <!-- Row 3: Buttons -->
+            <div class="flex items-center gap-2">
                 <button type="submit" class="flex-1 bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-95">
-                    Terapkan
+                    Terapkan Filter
                 </button>
                 <a href="index.php?page=matches" class="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 hover:text-slate-700 transition-all">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
